@@ -229,5 +229,11 @@ namespace Admin_Kiosk_Program
                 }
             }
         }
+
+        public void UpdateOptionValue(int optionId, string columnName, object value)
+        {
+            // UpdateCellValue 메서드를 재사용하여 options 테이블을 업데이트합니다.
+            UpdateCellValue("options", "option_id", optionId, columnName, value);
+        }
     }
 }

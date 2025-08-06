@@ -28,16 +28,16 @@
         /// </summary>
         private void InitializeComponent()
         {
-            SuspendLayout();
+            this.SuspendLayout();
             // 
             // Product_Change_Form
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 1061);
-            Name = "Product_Change_Form";
-            Text = "상품 관리";
-            ResumeLayout(false);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(784, 861);
+            this.Name = "Product_Change_Form";
+            this.Text = "상품 정보 수정";
+            this.ResumeLayout(false);
         }
 
         #endregion
