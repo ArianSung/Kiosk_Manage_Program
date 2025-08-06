@@ -30,7 +30,8 @@ namespace Admin_Kiosk_Program
             return new MySqlConnection(connectionString);
         }
 
-        // 특정 테이블의 모든 데이터를 가져오는 범용 메서드
+        // --- 데이터 조회 (Read) ---
+
         public DataTable GetTableData(string tableName)
         {
             DataTable dt = new DataTable();
@@ -50,7 +51,6 @@ namespace Admin_Kiosk_Program
             return dt;
         }
 
-        // 카테고리와 그에 속한 상품 목록만 가져오는 메서드
         public List<Category> GetCategoriesWithProducts()
         {
             var categories = new List<Category>();
@@ -91,7 +91,6 @@ namespace Admin_Kiosk_Program
             return categories;
         }
 
-        // 특정 상품의 모든 상세 정보를 가져오는 메서드
         public Product GetProductDetails(int productId)
         {
             Product product = null;
@@ -115,13 +114,13 @@ namespace Admin_Kiosk_Program
                                     ProductName = reader.GetString("product_name"),
                                     BasePrice = reader.GetDecimal("base_price"),
                                     ProductDescription = reader.IsDBNull(reader.GetOrdinal("description")) ? "" : reader.GetString("description"),
-                                    // ▼▼▼▼▼ BLOB 처리 코드를 URL(string)을 읽는 코드로 수정 ▼▼▼▼▼
+                                    ProductKcal = reader.IsDBNull(reader.GetOrdinal("product_kcal")) ? 0 : reader.GetInt32("product_kcal"),
+                                    // ▼▼▼▼▼ BLOB이 아닌 VARCHAR(URL)을 읽도록 수정 ▼▼▼▼▼
                                     ProductImageUrl = reader.IsDBNull(reader.GetOrdinal("product_image")) ? null : reader.GetString("product_image")
                                 };
                             }
                         }
                     }
-
                     if (product != null)
                     {
                         product.OptionGroups = GetOptionsForProduct(product.ProductId);
@@ -132,7 +131,6 @@ namespace Admin_Kiosk_Program
             return product;
         }
 
-        // 특정 상품의 옵션 그룹 및 상세 옵션을 모두 가져오는 메서드
         public List<OptionGroup> GetOptionsForProduct(int productId)
         {
             var optionGroups = new List<OptionGroup>();
@@ -184,7 +182,7 @@ namespace Admin_Kiosk_Program
             return optionGroups;
         }
 
-        // 특정 셀의 데이터를 업데이트하는 범용 메서드
+        // --- 데이터 수정 (Update) ---
         public void UpdateCellValue(string tableName, string primaryKeyColumn, object primaryKeyValue, string targetColumn, object newValue)
         {
             string query = $"UPDATE `{tableName}` SET `{targetColumn}` = @newValue WHERE `{primaryKeyColumn}` = @pkValue";
@@ -193,14 +191,18 @@ namespace Admin_Kiosk_Program
                 new MySqlParameter("@pkValue", primaryKeyValue));
         }
 
-        // 특정 행을 삭제하는 범용 메서드
+        public void UpdateOptionValue(int optionId, string columnName, object value)
+        {
+            UpdateCellValue("options", "option_id", optionId, columnName, value);
+        }
+
+        // --- 데이터 삭제 (Delete) ---
         public void DeleteRow(string tableName, string primaryKeyColumn, object primaryKeyValue)
         {
             string query = $"DELETE FROM `{tableName}` WHERE `{primaryKeyColumn}` = @pkValue";
             ExecuteNonQuery(query, new MySqlParameter("@pkValue", primaryKeyValue));
         }
 
-        // 새 행을 추가하는 범용 메서드
         public void AddNewRow(string tableName, Dictionary<string, object> data)
         {
             string columns = string.Join(", ", data.Keys.Select(k => $"`{k}`"));
@@ -210,6 +212,82 @@ namespace Admin_Kiosk_Program
             ExecuteNonQuery(query, parameters);
         }
 
+        // ▼▼▼▼▼ 여기에 누락되었던 두 메서드를 추가합니다 ▼▼▼▼▼
+        public void AddProduct(Dictionary<string, object> data)
+        {
+            AddNewRow("products", data);
+        }
+
+        public void DeleteProduct(int productId)
+        {
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                var transaction = conn.BeginTransaction();
+                try
+                {
+                    var groupIds = new List<int>();
+                    string getGroupsQuery = "SELECT group_id FROM option_groups WHERE product_id = @productId";
+                    using (var cmd = new MySqlCommand(getGroupsQuery, conn, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@productId", productId);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read()) { groupIds.Add(reader.GetInt32(0)); }
+                        }
+                    }
+
+                    if (groupIds.Count > 0)
+                    {
+                        string deleteOptionsQuery = $"DELETE FROM options WHERE group_id IN ({string.Join(",", groupIds)})";
+                        using (var cmd = new MySqlCommand(deleteOptionsQuery, conn, transaction)) { cmd.ExecuteNonQuery(); }
+                    }
+
+                    string deleteGroupsQuery = "DELETE FROM option_groups WHERE product_id = @productId";
+                    using (var cmd = new MySqlCommand(deleteGroupsQuery, conn, transaction)) { cmd.Parameters.AddWithValue("@productId", productId); cmd.ExecuteNonQuery(); }
+
+                    string deleteProductQuery = "DELETE FROM products WHERE product_id = @productId";
+                    using (var cmd = new MySqlCommand(deleteProductQuery, conn, transaction)) { cmd.Parameters.AddWithValue("@productId", productId); cmd.ExecuteNonQuery(); }
+
+                    transaction.Commit();
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    MessageBox.Show($"상품 삭제 오류: {ex.Message}");
+                }
+            }
+        }
+
+        public int AddProductAndGetId(Dictionary<string, object> data)
+        {
+            string columns = string.Join(", ", data.Keys.Select(k => $"`{k}`"));
+            string values = string.Join(", ", data.Keys.Select(k => $"@{k}"));
+            string query = $"INSERT INTO `products` ({columns}) VALUES ({values}); SELECT LAST_INSERT_ID();";
+            var parameters = data.Select(kvp => new MySqlParameter("@" + kvp.Key, kvp.Value ?? DBNull.Value)).ToArray();
+            return ExecuteScalar(query, parameters);
+        }
+
+        public int AddOptionGroup(int productId, string groupName, bool isRequired, bool allowMultiple)
+        {
+            string query = "INSERT INTO option_groups (product_id, group_name, is_required, allow_multiple) VALUES (@pId, @name, @req, @multi); SELECT LAST_INSERT_ID();";
+            return ExecuteScalar(query,
+                new MySqlParameter("@pId", productId),
+                new MySqlParameter("@name", groupName),
+                new MySqlParameter("@req", isRequired),
+                new MySqlParameter("@multi", allowMultiple));
+        }
+
+        public int AddOption(int groupId, string optionName, decimal additionalPrice)
+        {
+            string query = "INSERT INTO options (group_id, option_name, additional_price) VALUES (@gId, @name, @price); SELECT LAST_INSERT_ID();";
+            return ExecuteScalar(query,
+                new MySqlParameter("@gId", groupId),
+                new MySqlParameter("@name", optionName),
+                new MySqlParameter("@price", additionalPrice));
+        }
+
+        // --- 범용 실행 메서드 ---
         private void ExecuteNonQuery(string query, params MySqlParameter[] parameters)
         {
             using (var conn = GetConnection())
@@ -223,17 +301,29 @@ namespace Admin_Kiosk_Program
                         cmd.ExecuteNonQuery();
                     }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"DB 작업 오류: {ex.Message}");
-                }
+                catch (Exception ex) { MessageBox.Show($"DB 작업 오류: {ex.Message}"); }
             }
         }
 
-        public void UpdateOptionValue(int optionId, string columnName, object value)
+        private int ExecuteScalar(string query, params MySqlParameter[] parameters)
         {
-            // UpdateCellValue 메서드를 재사용하여 options 테이블을 업데이트합니다.
-            UpdateCellValue("options", "option_id", optionId, columnName, value);
+            using (var conn = GetConnection())
+            {
+                try
+                {
+                    conn.Open();
+                    using (var cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddRange(parameters);
+                        return Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"DB 작업(Scalar) 오류: {ex.Message}");
+                    return -1;
+                }
+            }
         }
     }
 }

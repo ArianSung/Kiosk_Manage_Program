@@ -49,7 +49,7 @@ namespace Admin_Kiosk_Program
             var productGroup = CreateGroupBox("상품 기본 정보", 740, 300);
             AddDetailRow(productGroup, "product_name", "상품 이름", _product.ProductName, 30);
             AddDetailRow(productGroup, "category_id", "카테고리 ID", _product.CategoryId, 70);
-            AddDetailRow(productGroup, "product_image", "상품 이미지 URL", _product.ProductImageUrl, 110, true);
+            AddDetailRow(productGroup, "product_image", "상품 이미지 URL", _product.ProductImageUrl, 110);
             AddDetailRow(productGroup, "description", "상품 설명", _product.ProductDescription, 150);
             AddDetailRow(productGroup, "base_price", "기본 가격", _product.BasePrice, 190);
             AddDetailRow(productGroup, "product_kcal", "칼로리", _product.ProductKcal, 230);

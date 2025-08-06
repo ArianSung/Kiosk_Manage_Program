@@ -3,6 +3,8 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using System.Collections.Generic; // Dictionary 사용을 위해 추가
+using System.Linq; // LINQ 사용을 위해 추가
 
 namespace Admin_Kiosk_Program
 {
@@ -10,7 +12,7 @@ namespace Admin_Kiosk_Program
     {
         private SplitContainer mainContainer;
         private FlowLayoutPanel buttonPanel;
-        private Button btn_Categories;
+        private Button btn_Categories; // 카테고리 버튼
         private Button btn_Products;
         private Button btn_Advertisements;
         private Button btn_Payments;
@@ -23,6 +25,8 @@ namespace Admin_Kiosk_Program
         private Button btn_Update;
         private Button btn_Delete;
         private Button btn_ChangeImage;
+        private Button btn_Add_Product;
+        private Button btn_Delete_Product;
 
         private Panel editPanel;
         private TreeView dataTreeView;
@@ -63,13 +67,16 @@ namespace Admin_Kiosk_Program
             btn_Add = new Button { Location = new Point(600, 38), Size = new Size(80, 25), Text = "추가" };
             btn_ChangeImage = new Button { Location = new Point(10, 38), Size = new Size(120, 25), Text = "이미지 변경...", Visible = false };
             btn_Change = new Button { Location = new Point(10, 38), Size = new Size(120, 25), Text = "선택 상품 변경", Visible = false };
+            btn_Add_Product = new Button { Location = new Point(140, 38), Size = new Size(100, 25), Text = "새 상품 추가", Visible = false };
+            btn_Delete_Product = new Button { Location = new Point(250, 38), Size = new Size(120, 25), Text = "선택 상품 삭제", Visible = false };
 
             dataTreeView = new TreeView { Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right, Location = new Point(10, 80), Font = new Font("맑은 고딕", 11F) };
             dataTreeView.Size = new Size(editPanel.ClientSize.Width - 20, editPanel.ClientSize.Height - 100);
 
-            editPanel.Controls.AddRange(new Control[] { dataTreeView, lbl_SelectedNodeInfo, txt_EditValue, btn_Update, btn_Delete, btn_Add, btn_ChangeImage, btn_Change });
+            editPanel.Controls.AddRange(new Control[] { dataTreeView, lbl_SelectedNodeInfo, txt_EditValue, btn_Update, btn_Delete, btn_Add, btn_ChangeImage, btn_Change, btn_Add_Product, btn_Delete_Product });
             mainContainer.Panel2.Controls.Add(editPanel);
 
+            // ▼▼▼▼▼ 카테고리 관리 버튼을 새로 추가합니다 ▼▼▼▼▼
             btn_Categories = CreateSimpleMenuButton("카테고리 관리", "categories", "category_id");
             btn_Products = new Button { Text = "상품 관리", Size = new Size(200, 50), Font = new Font("맑은 고딕", 10F, FontStyle.Bold) };
             btn_Advertisements = CreateSimpleMenuButton("광고 관리", "advertisements", "id");
@@ -78,8 +85,11 @@ namespace Admin_Kiosk_Program
             btn_SystemImages = CreateSimpleMenuButton("시스템 이미지 관리", "system_images", "image_key");
             btn_WebBannerImage = CreateSimpleMenuButton("웹 배너 관리", "webbanner_image", "id");
 
+            // 버튼 패널에 컨트롤들을 추가합니다.
             buttonPanel.Controls.AddRange(new Control[] { btn_Categories, btn_Products, btn_Advertisements, btn_Payments, btn_SystemColors, btn_SystemImages, btn_WebBannerImage });
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+            // 이벤트 핸들러 연결
             dataTreeView.AfterSelect += DataTreeView_AfterSelect;
             btn_Update.Click += Btn_Update_Click;
             btn_Delete.Click += Btn_Delete_Click;
@@ -87,6 +97,8 @@ namespace Admin_Kiosk_Program
             btn_ChangeImage.Click += Btn_ChangeImage_Click;
             btn_Products.Click += Btn_Products_Click;
             btn_Change.Click += Btn_Change_Click;
+            btn_Add_Product.Click += Btn_Add_Product_Click;
+            btn_Delete_Product.Click += Btn_Delete_Product_Click;
             btn_Exit.Click += (s, e) => { if (MessageBox.Show("프로그램을 종료하시겠습니까?", "종료 확인", MessageBoxButtons.YesNo) == DialogResult.Yes) Application.Exit(); };
 
             this.Controls.Add(mainContainer);
@@ -121,6 +133,8 @@ namespace Admin_Kiosk_Program
             btn_Delete.Visible = true;
             btn_Add.Visible = true;
             btn_Change.Visible = false;
+            btn_Add_Product.Visible = false;
+            btn_Delete_Product.Visible = false;
         }
 
         private void ShowProductEditor()
@@ -130,7 +144,10 @@ namespace Admin_Kiosk_Program
             btn_Delete.Visible = false;
             btn_Add.Visible = false;
             btn_Change.Visible = true;
+            btn_Add_Product.Visible = true;
+            btn_Delete_Product.Visible = true;
             btn_Change.Enabled = false;
+            btn_Delete_Product.Enabled = false;
         }
 
         private void LoadDataToTreeViewSimple()
@@ -173,16 +190,17 @@ namespace Admin_Kiosk_Program
                 }
             }
             rootNode.ExpandAll();
-            lbl_SelectedNodeInfo.Text = "상품을 선택하면 '변경' 버튼이 활성화됩니다.";
+            lbl_SelectedNodeInfo.Text = "상품을 선택하면 '변경' 또는 '삭제' 버튼이 활성화됩니다.";
         }
 
         private void DataTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            // 상품 관리 모드인지 확인
-            if (btn_Change.Visible)
+            if (btn_Change.Visible) // 상품 관리 모드
             {
-                btn_Change.Enabled = (e.Node?.Tag is Product);
-                lbl_SelectedNodeInfo.Text = (e.Node?.Tag is Product) ? $"선택된 상품: {e.Node.Text}" : "상품을 선택해주세요.";
+                bool isProductSelected = e.Node?.Tag is Product;
+                btn_Change.Enabled = isProductSelected;
+                btn_Delete_Product.Enabled = isProductSelected;
+                lbl_SelectedNodeInfo.Text = isProductSelected ? $"선택된 상품: {e.Node.Text}" : "상품을 선택해주세요.";
             }
             else // 단순 테이블 관리 모드
             {
@@ -268,12 +286,11 @@ namespace Admin_Kiosk_Program
 
         private void Btn_ChangeImage_Click(object sender, EventArgs e)
         {
-            var selectedNode = dataTreeView.SelectedNode;
-            DataRow row = selectedNode?.Tag as DataRow ?? selectedNode?.Parent?.Tag as DataRow;
+            DataRow row = dataTreeView.SelectedNode?.Tag as DataRow ?? dataTreeView.SelectedNode?.Parent?.Tag as DataRow;
             if (row == null) { MessageBox.Show("이미지를 변경할 항목을 선택해주세요."); return; }
 
             string imageColumnName = "image_data";
-            if (selectedNode.Tag is string colName && colName.Contains("image"))
+            if (dataTreeView.SelectedNode.Tag is string colName && colName.Contains("image"))
             {
                 imageColumnName = colName;
             }
@@ -299,11 +316,51 @@ namespace Admin_Kiosk_Program
         {
             if (dataTreeView.SelectedNode?.Tag is Product selectedProduct)
             {
-                // Product_Change_Form을 띄우고, 선택된 상품의 ID를 전달합니다.
                 using (var productForm = new Product_Change_Form(selectedProduct.ProductId))
                 {
                     productForm.ShowDialog();
-                    // 폼이 닫힌 후, 변경사항이 있을 수 있으므로 TreeView를 새로고침합니다.
+                    LoadProductsToTreeView();
+                }
+            }
+        }
+
+        private void Btn_Add_Product_Click(object sender, EventArgs e)
+        {
+            using (var addForm = new Product_Add_Form())
+            {
+                if (addForm.ShowDialog() == DialogResult.OK)
+                {
+                    // 1. Product_Add_Form에서 null이 아닌 NewProductData를 가져옵니다.
+                    Dictionary<string, object> productData = addForm.NewProductData;
+
+                    // 2. DatabaseManager를 통해 상품을 먼저 추가하고 새로 생성된 ID를 받습니다.
+                    int newProductId = DatabaseManager.Instance.AddProductAndGetId(productData);
+
+                    if (newProductId != -1)
+                    {
+                        // TODO: 폼에서 가져온 옵션 그룹과 상세 옵션들을 DB에 추가하는 로직
+                        // List<OptionGroup> newOptionGroups = addForm.NewOptionGroups;
+                        // foreach(var group in newOptionGroups) { ... }
+
+                        MessageBox.Show("새 상품이 추가되었습니다.");
+                        LoadProductsToTreeView(); // TreeView 새로고침
+                    }
+                    else
+                    {
+                        MessageBox.Show("상품 추가에 실패했습니다.");
+                    }
+                }
+            }
+        }
+
+        private void Btn_Delete_Product_Click(object sender, EventArgs e)
+        {
+            if (dataTreeView.SelectedNode?.Tag is Product selectedProduct)
+            {
+                if (MessageBox.Show($"'{selectedProduct.ProductName}' 상품을 정말로 삭제하시겠습니까?\n이 상품과 관련된 모든 옵션 정보도 함께 삭제됩니다.", "삭제 확인", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    DatabaseManager.Instance.DeleteProduct(selectedProduct.ProductId);
+                    MessageBox.Show("상품이 삭제되었습니다.");
                     LoadProductsToTreeView();
                 }
             }
