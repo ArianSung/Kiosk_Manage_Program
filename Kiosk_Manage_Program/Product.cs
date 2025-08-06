@@ -9,12 +9,14 @@ namespace Admin_Kiosk_Program
     public class Product
     {
         public int ProductId { get; set; }
+        public int CategoryId { get; set; }
         public string ProductName { get; set; }
         public decimal BasePrice { get; set; }
         public string ProductDescription { get; set; }
-        public string ProductImageUrl { get; set; }
+        public string ProductImageUrl { get; set; } // BLOB이 아닌 URL(string)을 저장할 속성
         public Image ProductImage { get; set; }
-        public List<OptionGroup> OptionGroups { get; set; }
+        public int ProductKcal {  get; set; }
+        public List<OptionGroup> OptionGroups { get; set; } = new List<OptionGroup>();
 
         public Product()
         {
