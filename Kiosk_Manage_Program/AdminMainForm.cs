@@ -189,7 +189,7 @@ namespace Admin_Kiosk_Program
                     categoryNode.Nodes.Add(productNode);
                 }
             }
-            rootNode.ExpandAll();
+            rootNode.Expand();
             lbl_SelectedNodeInfo.Text = "상품을 선택하면 '변경' 또는 '삭제' 버튼이 활성화됩니다.";
         }
 
