@@ -22,7 +22,8 @@ namespace Admin_Kiosk_Program
             string database = "kiosk_project";
             string uid = "kiosk_user";
             string password = "123456";
-            connectionString = $"SERVER={server};DATABASE={database};UID={uid};PASSWORD={password};";
+            // 사용자 변수를 허용하는 설정을 추가합니다.
+            connectionString = $"SERVER={server};DATABASE={database};UID={uid};PASSWORD={password};Allow User Variables=true;";
         }
 
         public MySqlConnection GetConnection()
@@ -203,6 +204,47 @@ namespace Admin_Kiosk_Program
             ExecuteNonQuery(query, new MySqlParameter("@pkValue", primaryKeyValue));
         }
 
+        public void DeleteOption(int optionId)
+        {
+            // options 테이블에서 특정 옵션을 삭제합니다.
+            DeleteRow("options", "option_id", optionId);
+        }
+
+        public void DeleteOptionGroup(int groupId)
+        {
+            // 옵션 그룹과 그에 속한 모든 옵션을 트랜잭션으로 삭제합니다.
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                var transaction = conn.BeginTransaction();
+                try
+                {
+                    // 1. 그룹에 속한 모든 옵션을 먼저 삭제합니다.
+                    string deleteOptionsQuery = "DELETE FROM options WHERE group_id = @groupId";
+                    using (var cmd = new MySqlCommand(deleteOptionsQuery, conn, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@groupId", groupId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 2. 옵션 그룹을 삭제합니다.
+                    string deleteGroupQuery = "DELETE FROM option_groups WHERE group_id = @groupId";
+                    using (var cmd = new MySqlCommand(deleteGroupQuery, conn, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@groupId", groupId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit(); // 모든 작업이 성공하면 커밋
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback(); // 오류 발생 시 롤백
+                    MessageBox.Show($"옵션 그룹 삭제 오류: {ex.Message}");
+                }
+            }
+        }
+
         public void AddNewRow(string tableName, Dictionary<string, object> data)
         {
             string columns = string.Join(", ", data.Keys.Select(k => $"`{k}`"));
@@ -270,7 +312,13 @@ namespace Admin_Kiosk_Program
 
         public int AddOptionGroup(int productId, string groupName, bool isRequired, bool allowMultiple)
         {
-            string query = "INSERT INTO option_groups (product_id, group_name, is_required, allow_multiple) VALUES (@pId, @name, @req, @multi); SELECT LAST_INSERT_ID();";
+            // 한 번의 DB 호출로 display_order를 계산하고 그룹을 추가합니다.
+            string query = @"
+                SET @next_order = (SELECT COALESCE(MAX(display_order), 0) + 1 FROM option_groups WHERE product_id = @pId);
+                INSERT INTO option_groups (product_id, group_name, is_required, allow_multiple, display_order) 
+                VALUES (@pId, @name, @req, @multi, @next_order);
+                SELECT LAST_INSERT_ID();";
+
             return ExecuteScalar(query,
                 new MySqlParameter("@pId", productId),
                 new MySqlParameter("@name", groupName),

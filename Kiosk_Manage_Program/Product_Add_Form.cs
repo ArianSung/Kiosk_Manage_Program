@@ -22,7 +22,7 @@ namespace Admin_Kiosk_Program
         public Product_Add_Form()
         {
             this.Text = "새 상품 추가 및 옵션 관리";
-            this.Size = new Size(1000, 700);
+            this.Size = new Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterParent;
             InitializeCustomComponents();
             LoadCategories();
