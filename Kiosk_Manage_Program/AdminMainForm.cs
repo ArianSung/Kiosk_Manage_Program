@@ -52,7 +52,14 @@ namespace Admin_Kiosk_Program
 
         private void InitializeCustomComponents()
         {
-            mainContainer = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 220, FixedPanel = FixedPanel.Panel1, BorderStyle = BorderStyle.Fixed3D };
+            mainContainer = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                SplitterDistance = 250,
+                FixedPanel = FixedPanel.Panel1,
+                BorderStyle = BorderStyle.Fixed3D,
+                Panel1MinSize = 220
+            };
             var leftPanel = mainContainer.Panel1;
             btn_Exit = new Button { Text = "³ª°¡±â", Font = new Font("¸¼Àº °íµñ", 10F, FontStyle.Bold), Dock = DockStyle.Bottom, Height = 50 };
             buttonPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(10) };
