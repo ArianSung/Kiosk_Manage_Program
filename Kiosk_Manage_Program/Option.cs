@@ -9,6 +9,7 @@ namespace Admin_Kiosk_Program
     public class Option
     {
         public int OptionId { get; set; }
+        public int GroupId { get; set; }
         public string OptionName { get; set; }
         public decimal AdditionalPrice { get; set; }
     }
